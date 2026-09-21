@@ -112,3 +112,7 @@ The final application will provide recruiters with a simple platform to organize
 
 ## Conclusion
 The Candidate Evaluation Platform will demonstrate how a web-based solution can organize recruitment activities and reduce the manual effort involved in screening and evaluating candidates.
+
+## Project Status
+
+Initial project setup completed.
