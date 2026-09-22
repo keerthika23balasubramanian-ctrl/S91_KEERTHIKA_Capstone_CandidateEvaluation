@@ -36,6 +36,18 @@ app.get('/api/candidates', async (req, res) => {
   }
 });
 
+app.get('/api/candidates/:id', async (req, res) => {
+  try {
+    const candidate = await Candidate.findById(req.params.id);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+    res.json(candidate);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch candidate', error: error.message });
+  }
+});
+
 app.post('/api/candidates', async (req, res) => {
   try {
     const candidate = await Candidate.create(req.body);
@@ -54,6 +66,18 @@ app.get('/api/recruiters', async (req, res) => {
   }
 });
 
+app.get('/api/recruiters/:id', async (req, res) => {
+  try {
+    const recruiter = await Recruiter.findById(req.params.id);
+    if (!recruiter) {
+      return res.status(404).json({ message: 'Recruiter not found' });
+    }
+    res.json(recruiter);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch recruiter', error: error.message });
+  }
+});
+
 app.post('/api/recruiters', async (req, res) => {
   try {
     const recruiter = await Recruiter.create(req.body);
@@ -69,6 +93,18 @@ app.get('/api/evaluations', async (req, res) => {
     res.json(evaluations);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch evaluations', error: error.message });
+  }
+});
+
+app.get('/api/evaluations/:id', async (req, res) => {
+  try {
+    const evaluation = await Evaluation.findById(req.params.id).populate('candidate recruiter');
+    if (!evaluation) {
+      return res.status(404).json({ message: 'Evaluation not found' });
+    }
+    res.json(evaluation);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch evaluation', error: error.message });
   }
 });
 
