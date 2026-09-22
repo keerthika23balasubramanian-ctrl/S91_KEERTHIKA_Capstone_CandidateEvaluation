@@ -1,10 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-const DEFAULT_CREDENTIALS = {
-  username: 'admin',
-  password: 'admin123',
-}
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 const initialCandidates = [
   { id: 1, name: 'Aisha Mehta', role: 'Frontend Developer', score: 92, stage: 'Strong fit', tone: 'fit' },
@@ -36,14 +33,8 @@ const hiringFlow = [
 ]
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const savedAuth = localStorage.getItem('evalhire-auth')
-    return savedAuth ? JSON.parse(savedAuth).isAuthenticated : false
-  })
-  const [authUser, setAuthUser] = useState(() => {
-    const savedAuth = localStorage.getItem('evalhire-auth')
-    return savedAuth ? JSON.parse(savedAuth).username : ''
-  })
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('evalhire-jwt')))
+  const [authUser, setAuthUser] = useState(() => localStorage.getItem('evalhire-user') || '')
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [loginError, setLoginError] = useState('')
   const [activeNav, setActiveNav] = useState('Dashboard')
@@ -131,24 +122,66 @@ function App() {
     setLoginForm((current) => ({ ...current, [name]: value }))
   }
 
-  const handleLogin = (event) => {
+  useEffect(() => {
+    const token = localStorage.getItem('evalhire-jwt')
+    if (!token) return
+
+    const verifyToken = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error('Token invalid')
+        }
+
+        const data = await response.json()
+        setAuthUser(data.user.username)
+        setIsAuthenticated(true)
+      } catch (error) {
+        handleLogout()
+      }
+    }
+
+    verifyToken()
+  }, [])
+
+  const handleLogin = async (event) => {
     event.preventDefault()
 
     const { username, password } = loginForm
-    if (username === DEFAULT_CREDENTIALS.username && password === DEFAULT_CREDENTIALS.password) {
-      const authPayload = { isAuthenticated: true, username }
-      localStorage.setItem('evalhire-auth', JSON.stringify(authPayload))
-      setAuthUser(username)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed')
+      }
+
+      localStorage.setItem('evalhire-jwt', data.token)
+      localStorage.setItem('evalhire-user', data.user.username)
+      setAuthUser(data.user.username)
       setIsAuthenticated(true)
       setLoginError('')
-      return
+    } catch (error) {
+      setLoginError(error.message || 'Invalid username or password. Use admin / admin123.')
     }
-
-    setLoginError('Invalid username or password. Use admin / admin123.')
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('evalhire-auth')
+    localStorage.removeItem('evalhire-jwt')
+    localStorage.removeItem('evalhire-user')
     setIsAuthenticated(false)
     setAuthUser('')
     setLoginForm({ username: '', password: '' })

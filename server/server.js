@@ -1,16 +1,35 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const connectDB = require('./database');
 const { Candidate, Recruiter, Evaluation } = require('./models');
 
 const app = express();
 const DEFAULT_PORT = Number(process.env.PORT) || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'evalhire-secret-key';
 
 app.use(cors());
 app.use(express.json());
 
 connectDB();
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access token required' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired token' });
+  }
+};
 
 app.get('/', (req, res) => {
   res.json({
@@ -27,7 +46,35 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/candidates', async (req, res) => {
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {};
+
+  if (username === 'admin' && password === 'admin123') {
+    const payload = { username, role: 'recruiter' };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+
+    return res.json({
+      token,
+      user: {
+        username,
+        role: 'recruiter'
+      }
+    });
+  }
+
+  return res.status(401).json({ message: 'Invalid username or password' });
+});
+
+app.get('/api/auth/me', authenticateToken, (req, res) => {
+  res.json({
+    user: {
+      username: req.user.username,
+      role: req.user.role
+    }
+  });
+});
+
+app.get('/api/candidates', authenticateToken, async (req, res) => {
   try {
     const candidates = await Candidate.find().sort({ createdAt: -1 });
     res.json(candidates);
@@ -48,7 +95,7 @@ app.get('/api/candidates/:id', async (req, res) => {
   }
 });
 
-app.post('/api/candidates', async (req, res) => {
+app.post('/api/candidates', authenticateToken, async (req, res) => {
   try {
     const candidate = await Candidate.create(req.body);
     res.status(201).json(candidate);
@@ -57,7 +104,7 @@ app.post('/api/candidates', async (req, res) => {
   }
 });
 
-app.put('/api/candidates/:id', async (req, res) => {
+app.put('/api/candidates/:id', authenticateToken, async (req, res) => {
   try {
     const candidate = await Candidate.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -74,7 +121,7 @@ app.put('/api/candidates/:id', async (req, res) => {
   }
 });
 
-app.get('/api/recruiters', async (req, res) => {
+app.get('/api/recruiters', authenticateToken, async (req, res) => {
   try {
     const recruiters = await Recruiter.find().sort({ createdAt: -1 });
     res.json(recruiters);
@@ -83,7 +130,7 @@ app.get('/api/recruiters', async (req, res) => {
   }
 });
 
-app.get('/api/recruiters/:id', async (req, res) => {
+app.get('/api/recruiters/:id', authenticateToken, async (req, res) => {
   try {
     const recruiter = await Recruiter.findById(req.params.id).populate('managedCandidates');
     if (!recruiter) {
@@ -95,7 +142,7 @@ app.get('/api/recruiters/:id', async (req, res) => {
   }
 });
 
-app.get('/api/recruiters/:id/candidates', async (req, res) => {
+app.get('/api/recruiters/:id/candidates', authenticateToken, async (req, res) => {
   try {
     const recruiter = await Recruiter.findById(req.params.id).populate('managedCandidates');
     if (!recruiter) {
@@ -108,7 +155,7 @@ app.get('/api/recruiters/:id/candidates', async (req, res) => {
   }
 });
 
-app.post('/api/recruiters', async (req, res) => {
+app.post('/api/recruiters', authenticateToken, async (req, res) => {
   try {
     const recruiter = await Recruiter.create(req.body);
     res.status(201).json(recruiter);
@@ -117,7 +164,7 @@ app.post('/api/recruiters', async (req, res) => {
   }
 });
 
-app.put('/api/recruiters/:id', async (req, res) => {
+app.put('/api/recruiters/:id', authenticateToken, async (req, res) => {
   try {
     const recruiter = await Recruiter.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -134,7 +181,7 @@ app.put('/api/recruiters/:id', async (req, res) => {
   }
 });
 
-app.post('/api/recruiters/:recruiterId/candidates', async (req, res) => {
+app.post('/api/recruiters/:recruiterId/candidates', authenticateToken, async (req, res) => {
   try {
     const { candidateId } = req.body;
     const recruiter = await Recruiter.findById(req.params.recruiterId);
@@ -164,7 +211,7 @@ app.post('/api/recruiters/:recruiterId/candidates', async (req, res) => {
   }
 });
 
-app.get('/api/evaluations', async (req, res) => {
+app.get('/api/evaluations', authenticateToken, async (req, res) => {
   try {
     const evaluations = await Evaluation.find().populate('candidate recruiter').sort({ createdAt: -1 });
     res.json(evaluations);
@@ -173,7 +220,7 @@ app.get('/api/evaluations', async (req, res) => {
   }
 });
 
-app.get('/api/evaluations/:id', async (req, res) => {
+app.get('/api/evaluations/:id', authenticateToken, async (req, res) => {
   try {
     const evaluation = await Evaluation.findById(req.params.id).populate('candidate recruiter');
     if (!evaluation) {
@@ -185,7 +232,7 @@ app.get('/api/evaluations/:id', async (req, res) => {
   }
 });
 
-app.post('/api/evaluations', async (req, res) => {
+app.post('/api/evaluations', authenticateToken, async (req, res) => {
   try {
     const evaluation = await Evaluation.create(req.body);
     const populatedEvaluation = await evaluation.populate('candidate recruiter');
@@ -195,7 +242,7 @@ app.post('/api/evaluations', async (req, res) => {
   }
 });
 
-app.put('/api/evaluations/:id', async (req, res) => {
+app.put('/api/evaluations/:id', authenticateToken, async (req, res) => {
   try {
     const evaluation = await Evaluation.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
