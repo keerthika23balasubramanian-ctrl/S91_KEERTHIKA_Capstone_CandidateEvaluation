@@ -179,6 +179,38 @@ function App() {
     }
   }
 
+  const handleGoogleLogin = async () => {
+    try {
+      const googleUser = {
+        name: 'Google Recruiter',
+        email: 'google.recruiter@evalhire.com',
+        provider: 'google',
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(googleUser),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Google sign-in failed')
+      }
+
+      localStorage.setItem('evalhire-jwt', data.token)
+      localStorage.setItem('evalhire-user', data.user.name || data.user.username)
+      setAuthUser(data.user.name || data.user.username)
+      setIsAuthenticated(true)
+      setLoginError('')
+    } catch (error) {
+      setLoginError(error.message || 'Google sign-in failed')
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('evalhire-jwt')
     localStorage.removeItem('evalhire-user')
@@ -247,6 +279,15 @@ function App() {
 
           <h1>Sign in</h1>
           <p className="auth-subtitle">Access the recruiter dashboard</p>
+
+          <div className="social-auth-block">
+            <button type="button" className="google-btn" onClick={handleGoogleLogin}>
+              <span className="google-icon">G</span>
+              Continue with Google
+            </button>
+          </div>
+
+          <div className="divider"><span>or continue with username</span></div>
 
           <form className="auth-form" onSubmit={handleLogin}>
             <label>

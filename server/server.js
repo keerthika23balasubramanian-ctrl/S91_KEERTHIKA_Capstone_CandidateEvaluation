@@ -65,6 +65,33 @@ app.post('/api/auth/login', (req, res) => {
   return res.status(401).json({ message: 'Invalid username or password' });
 });
 
+app.post('/api/auth/google', (req, res) => {
+  const { email, name, provider } = req.body || {};
+
+  if (provider === 'google' && email && name) {
+    const payload = {
+      username: email,
+      role: 'google_recruiter',
+      name,
+      provider: 'google'
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+
+    return res.json({
+      token,
+      user: {
+        username: email,
+        name,
+        role: 'google_recruiter',
+        provider: 'google'
+      }
+    });
+  }
+
+  return res.status(401).json({ message: 'Google authentication failed' });
+});
+
 app.get('/api/auth/me', authenticateToken, (req, res) => {
   res.json({
     user: {
