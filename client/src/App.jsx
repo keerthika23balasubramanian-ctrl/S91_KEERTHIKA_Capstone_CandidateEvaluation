@@ -8,6 +8,13 @@ const initialCandidates = [
   { id: 4, name: 'Leo Martin', role: 'Full Stack Engineer', score: 76, stage: 'Waiting', tone: 'pending' },
 ]
 
+const stageToneMap = {
+  'Strong fit': 'fit',
+  'Under review': 'neutral',
+  Interview: 'interview',
+  Waiting: 'pending',
+}
+
 const initialTasks = [
   { id: 1, text: 'Review technical assessment', due: 'Today', done: false },
   { id: 2, text: 'Share recruiter feedback', due: 'Tomorrow', done: true },
@@ -30,6 +37,7 @@ function App() {
   const [selectedCandidateId, setSelectedCandidateId] = useState(initialCandidates[0].id)
   const [searchTerm, setSearchTerm] = useState('')
   const [showOnlyShortlisted, setShowOnlyShortlisted] = useState(false)
+  const [editingCandidate, setEditingCandidate] = useState(null)
 
   const filteredCandidates = useMemo(() => {
     return candidates.filter((candidate) => {
@@ -101,6 +109,51 @@ function App() {
   const handleSelectCandidate = (candidateId) => {
     setSelectedCandidateId(candidateId)
     setActiveNav('Candidates')
+  }
+
+  const startEditingCandidate = (candidate) => {
+    setEditingCandidate({ ...candidate })
+  }
+
+  const handleEditInputChange = (event) => {
+    const { name, value } = event.target
+    setEditingCandidate((current) => ({
+      ...current,
+      [name]: name === 'score' ? Number(value) : value,
+      tone: name === 'stage' ? stageToneMap[value] ?? 'neutral' : current?.tone,
+    }))
+  }
+
+  const saveCandidateChanges = () => {
+    if (!editingCandidate) return
+
+    setCandidates((current) =>
+      current.map((candidate) =>
+        candidate.id === editingCandidate.id
+          ? {
+              ...candidate,
+              ...editingCandidate,
+              tone: stageToneMap[editingCandidate.stage] ?? candidate.tone,
+            }
+          : candidate,
+      ),
+    )
+
+    setSelectedCandidateId(editingCandidate.id)
+    setEditingCandidate(null)
+  }
+
+  const deleteCandidate = (candidateId) => {
+    const remainingCandidates = candidates.filter((candidate) => candidate.id !== candidateId)
+    setCandidates(remainingCandidates)
+
+    if (selectedCandidateId === candidateId) {
+      setSelectedCandidateId(remainingCandidates[0]?.id ?? null)
+    }
+
+    if (editingCandidate?.id === candidateId) {
+      setEditingCandidate(null)
+    }
   }
 
   return (
@@ -275,7 +328,71 @@ function App() {
                   <p>{selectedCandidate.score}/100</p>
                 </div>
               </div>
+
+              <div className="detail-actions">
+                <button className="secondary-btn" type="button" onClick={() => startEditingCandidate(selectedCandidate)}>
+                  Update
+                </button>
+                <button className="danger-btn" type="button" onClick={() => deleteCandidate(selectedCandidate.id)}>
+                  Delete
+                </button>
+              </div>
             </div>
+
+            {editingCandidate && (
+              <div className="update-form">
+                <h3>Edit candidate</h3>
+                <label>
+                  Name
+                  <input
+                    type="text"
+                    name="name"
+                    value={editingCandidate.name}
+                    onChange={handleEditInputChange}
+                    className="input-field"
+                  />
+                </label>
+                <label>
+                  Role
+                  <input
+                    type="text"
+                    name="role"
+                    value={editingCandidate.role}
+                    onChange={handleEditInputChange}
+                    className="input-field"
+                  />
+                </label>
+                <label>
+                  Stage
+                  <select name="stage" value={editingCandidate.stage} onChange={handleEditInputChange} className="input-field">
+                    <option value="Strong fit">Strong fit</option>
+                    <option value="Under review">Under review</option>
+                    <option value="Interview">Interview</option>
+                    <option value="Waiting">Waiting</option>
+                  </select>
+                </label>
+                <label>
+                  Score
+                  <input
+                    type="number"
+                    name="score"
+                    min="0"
+                    max="100"
+                    value={editingCandidate.score}
+                    onChange={handleEditInputChange}
+                    className="input-field"
+                  />
+                </label>
+                <div className="form-actions">
+                  <button className="primary-btn" type="button" onClick={saveCandidateChanges}>
+                    Save changes
+                  </button>
+                  <button className="ghost-btn" type="button" onClick={() => setEditingCandidate(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="task-list">
               {tasks.map((task) => (
