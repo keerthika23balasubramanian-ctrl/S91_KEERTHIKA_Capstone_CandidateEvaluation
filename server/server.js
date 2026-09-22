@@ -36,6 +36,15 @@ app.get('/api/candidates', async (req, res) => {
   }
 });
 
+app.post('/api/candidates', async (req, res) => {
+  try {
+    const candidate = await Candidate.create(req.body);
+    res.status(201).json(candidate);
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to create candidate', error: error.message });
+  }
+});
+
 app.get('/api/recruiters', async (req, res) => {
   try {
     const recruiters = await Recruiter.find().sort({ createdAt: -1 });
@@ -45,12 +54,31 @@ app.get('/api/recruiters', async (req, res) => {
   }
 });
 
+app.post('/api/recruiters', async (req, res) => {
+  try {
+    const recruiter = await Recruiter.create(req.body);
+    res.status(201).json(recruiter);
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to create recruiter', error: error.message });
+  }
+});
+
 app.get('/api/evaluations', async (req, res) => {
   try {
-    const evaluations = await Evaluation.find().populate('candidate recruiter');
+    const evaluations = await Evaluation.find().populate('candidate recruiter').sort({ createdAt: -1 });
     res.json(evaluations);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch evaluations', error: error.message });
+  }
+});
+
+app.post('/api/evaluations', async (req, res) => {
+  try {
+    const evaluation = await Evaluation.create(req.body);
+    const populatedEvaluation = await evaluation.populate('candidate recruiter');
+    res.status(201).json(populatedEvaluation);
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to create evaluation', error: error.message });
   }
 });
 
