@@ -36,6 +36,11 @@ const candidateSchema = new mongoose.Schema(
       type: String,
       default: 'Unknown'
     },
+    assignedRecruiter: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Recruiter',
+      default: null
+    },
     resumeUrl: {
       type: String,
       default: ''

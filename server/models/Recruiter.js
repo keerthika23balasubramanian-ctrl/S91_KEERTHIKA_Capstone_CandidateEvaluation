@@ -22,6 +22,10 @@ const recruiterSchema = new mongoose.Schema(
       type: String,
       default: 'Recruiter'
     },
+    managedCandidates: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Candidate'
+    }],
     permissions: {
       type: [String],
       default: ['view_candidates', 'update_status', 'add_feedback']

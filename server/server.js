@@ -85,13 +85,26 @@ app.get('/api/recruiters', async (req, res) => {
 
 app.get('/api/recruiters/:id', async (req, res) => {
   try {
-    const recruiter = await Recruiter.findById(req.params.id);
+    const recruiter = await Recruiter.findById(req.params.id).populate('managedCandidates');
     if (!recruiter) {
       return res.status(404).json({ message: 'Recruiter not found' });
     }
     res.json(recruiter);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch recruiter', error: error.message });
+  }
+});
+
+app.get('/api/recruiters/:id/candidates', async (req, res) => {
+  try {
+    const recruiter = await Recruiter.findById(req.params.id).populate('managedCandidates');
+    if (!recruiter) {
+      return res.status(404).json({ message: 'Recruiter not found' });
+    }
+
+    res.json(recruiter.managedCandidates);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch recruiter candidates', error: error.message });
   }
 });
 
@@ -118,6 +131,36 @@ app.put('/api/recruiters/:id', async (req, res) => {
     res.json(recruiter);
   } catch (error) {
     res.status(400).json({ message: 'Failed to update recruiter', error: error.message });
+  }
+});
+
+app.post('/api/recruiters/:recruiterId/candidates', async (req, res) => {
+  try {
+    const { candidateId } = req.body;
+    const recruiter = await Recruiter.findById(req.params.recruiterId);
+    const candidate = await Candidate.findById(candidateId);
+
+    if (!recruiter || !candidate) {
+      return res.status(404).json({ message: 'Recruiter or candidate not found' });
+    }
+
+    candidate.assignedRecruiter = recruiter._id;
+    recruiter.managedCandidates = recruiter.managedCandidates || [];
+
+    if (!recruiter.managedCandidates.some((id) => id.toString() === candidate._id.toString())) {
+      recruiter.managedCandidates.push(candidate._id);
+    }
+
+    await candidate.save();
+    await recruiter.save();
+
+    res.status(201).json({
+      message: 'Candidate assigned to recruiter',
+      recruiter: await Recruiter.findById(recruiter._id).populate('managedCandidates'),
+      candidate
+    });
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to assign candidate to recruiter', error: error.message });
   }
 });
 
