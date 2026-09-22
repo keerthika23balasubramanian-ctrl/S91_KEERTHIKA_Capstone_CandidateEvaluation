@@ -172,7 +172,8 @@ button {
 
 .primary-btn,
 .secondary-btn,
-.ghost-btn {
+.ghost-btn,
+.danger-btn {
   border: none;
   border-radius: 12px;
   padding: 0.82rem 1.2rem;
@@ -194,6 +195,11 @@ button {
   background: #fff;
   color: #374151;
   border: 1px solid #e2e8f0;
+}
+
+.danger-btn {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .hero-card {
@@ -496,6 +502,45 @@ button {
   margin: 4px 0 0;
   color: #111827;
   font-weight: 700;
+}
+
+.detail-actions,
+.form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.update-form {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.update-form h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.update-form label {
+  display: grid;
+  gap: 6px;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  background: #fff;
+  color: #111827;
 }
 
 .task-list {
