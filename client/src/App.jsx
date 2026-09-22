@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react'
 import './App.css'
 
+const DEFAULT_CREDENTIALS = {
+  username: 'admin',
+  password: 'admin123',
+}
+
 const initialCandidates = [
   { id: 1, name: 'Aisha Mehta', role: 'Frontend Developer', score: 92, stage: 'Strong fit', tone: 'fit' },
   { id: 2, name: 'Daniel Ross', role: 'Product Analyst', score: 81, stage: 'Under review', tone: 'neutral' },
@@ -31,6 +36,16 @@ const hiringFlow = [
 ]
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const savedAuth = localStorage.getItem('evalhire-auth')
+    return savedAuth ? JSON.parse(savedAuth).isAuthenticated : false
+  })
+  const [authUser, setAuthUser] = useState(() => {
+    const savedAuth = localStorage.getItem('evalhire-auth')
+    return savedAuth ? JSON.parse(savedAuth).username : ''
+  })
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' })
+  const [loginError, setLoginError] = useState('')
   const [activeNav, setActiveNav] = useState('Dashboard')
   const [candidates, setCandidates] = useState(initialCandidates)
   const [tasks, setTasks] = useState(initialTasks)
@@ -111,6 +126,35 @@ function App() {
     setActiveNav('Candidates')
   }
 
+  const handleLoginInput = (event) => {
+    const { name, value } = event.target
+    setLoginForm((current) => ({ ...current, [name]: value }))
+  }
+
+  const handleLogin = (event) => {
+    event.preventDefault()
+
+    const { username, password } = loginForm
+    if (username === DEFAULT_CREDENTIALS.username && password === DEFAULT_CREDENTIALS.password) {
+      const authPayload = { isAuthenticated: true, username }
+      localStorage.setItem('evalhire-auth', JSON.stringify(authPayload))
+      setAuthUser(username)
+      setIsAuthenticated(true)
+      setLoginError('')
+      return
+    }
+
+    setLoginError('Invalid username or password. Use admin / admin123.')
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('evalhire-auth')
+    setIsAuthenticated(false)
+    setAuthUser('')
+    setLoginForm({ username: '', password: '' })
+    setLoginError('')
+  }
+
   const startEditingCandidate = (candidate) => {
     setEditingCandidate({ ...candidate })
   }
@@ -156,6 +200,57 @@ function App() {
     }
   }
 
+  if (!isAuthenticated) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="brand-block auth-brand">
+            <div className="brand-mark">E</div>
+            <div>
+              <p className="brand-title">EvalHire</p>
+              <span>Recruitment Suite</span>
+            </div>
+          </div>
+
+          <h1>Sign in</h1>
+          <p className="auth-subtitle">Access the recruiter dashboard</p>
+
+          <form className="auth-form" onSubmit={handleLogin}>
+            <label>
+              Username
+              <input
+                type="text"
+                name="username"
+                value={loginForm.username}
+                onChange={handleLoginInput}
+                placeholder="admin"
+                className="input-field"
+              />
+            </label>
+
+            <label>
+              Password
+              <input
+                type="password"
+                name="password"
+                value={loginForm.password}
+                onChange={handleLoginInput}
+                placeholder="admin123"
+                className="input-field"
+              />
+            </label>
+
+            {loginError && <p className="error-text">{loginError}</p>}
+
+            <button className="primary-btn auth-submit" type="submit">
+              Login
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="dashboard-shell">
       <aside className="sidebar">
@@ -194,11 +289,15 @@ function App() {
             <h1>Recruiter Dashboard</h1>
           </div>
           <div className="topbar-actions">
+            <span className="user-badge">Signed in as {authUser}</span>
             <button className="ghost-btn" type="button" onClick={exportReport}>
               Export
             </button>
             <button className="primary-btn" type="button" onClick={addCandidate}>
               Add candidate
+            </button>
+            <button className="secondary-btn" type="button" onClick={handleLogout}>
+              Logout
             </button>
           </div>
         </header>
