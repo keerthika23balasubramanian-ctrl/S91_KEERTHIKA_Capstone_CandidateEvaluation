@@ -57,6 +57,23 @@ app.post('/api/candidates', async (req, res) => {
   }
 });
 
+app.put('/api/candidates/:id', async (req, res) => {
+  try {
+    const candidate = await Candidate.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    res.json(candidate);
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to update candidate', error: error.message });
+  }
+});
+
 app.get('/api/recruiters', async (req, res) => {
   try {
     const recruiters = await Recruiter.find().sort({ createdAt: -1 });
@@ -84,6 +101,23 @@ app.post('/api/recruiters', async (req, res) => {
     res.status(201).json(recruiter);
   } catch (error) {
     res.status(400).json({ message: 'Failed to create recruiter', error: error.message });
+  }
+});
+
+app.put('/api/recruiters/:id', async (req, res) => {
+  try {
+    const recruiter = await Recruiter.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+    if (!recruiter) {
+      return res.status(404).json({ message: 'Recruiter not found' });
+    }
+
+    res.json(recruiter);
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to update recruiter', error: error.message });
   }
 });
 
@@ -115,6 +149,23 @@ app.post('/api/evaluations', async (req, res) => {
     res.status(201).json(populatedEvaluation);
   } catch (error) {
     res.status(400).json({ message: 'Failed to create evaluation', error: error.message });
+  }
+});
+
+app.put('/api/evaluations/:id', async (req, res) => {
+  try {
+    const evaluation = await Evaluation.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    }).populate('candidate recruiter');
+
+    if (!evaluation) {
+      return res.status(404).json({ message: 'Evaluation not found' });
+    }
+
+    res.json(evaluation);
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to update evaluation', error: error.message });
   }
 });
 
