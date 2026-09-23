@@ -2,15 +2,55 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const connectDB = require('./database');
 const { Candidate, Recruiter, Evaluation } = require('./models');
 
 const app = express();
 const DEFAULT_PORT = Number(process.env.PORT) || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'evalhire-secret-key';
+const uploadDir = path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const safeName = `${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
+    cb(null, safeName);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error('Only PDF and Word documents are allowed.'));
+  }
+});
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(uploadDir));
 
 connectDB();
 
@@ -98,6 +138,25 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
       username: req.user.username,
       role: req.user.role
     }
+  });
+});
+
+app.post('/api/upload/resume', authenticateToken, (req, res) => {
+  upload.single('resume')(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({ message: error.message || 'Resume upload failed' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'A resume file is required.' });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    return res.status(200).json({
+      message: 'Resume uploaded successfully',
+      fileName: req.file.originalname,
+      fileUrl
+    });
   });
 });
 

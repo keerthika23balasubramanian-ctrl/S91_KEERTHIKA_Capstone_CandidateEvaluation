@@ -44,6 +44,9 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showOnlyShortlisted, setShowOnlyShortlisted] = useState(false)
   const [editingCandidate, setEditingCandidate] = useState(null)
+  const [resumeUploadError, setResumeUploadError] = useState('')
+  const [resumeUploadSuccess, setResumeUploadSuccess] = useState('')
+  const [isUploadingResume, setIsUploadingResume] = useState(false)
 
   const filteredCandidates = useMemo(() => {
     return candidates.filter((candidate) => {
@@ -222,6 +225,56 @@ function App() {
 
   const startEditingCandidate = (candidate) => {
     setEditingCandidate({ ...candidate })
+    setResumeUploadError('')
+    setResumeUploadSuccess('')
+  }
+
+  const handleResumeUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file || !editingCandidate) {
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('resume', file)
+
+    setIsUploadingResume(true)
+    setResumeUploadError('')
+    setResumeUploadSuccess('')
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/upload/resume`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('evalhire-jwt')}`,
+        },
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Resume upload failed')
+      }
+
+      const updatedCandidate = {
+        ...editingCandidate,
+        resumeUrl: data.fileUrl,
+      }
+
+      setEditingCandidate(updatedCandidate)
+      setCandidates((current) =>
+        current.map((candidate) =>
+          candidate.id === updatedCandidate.id ? { ...candidate, resumeUrl: data.fileUrl } : candidate,
+        ),
+      )
+      setResumeUploadSuccess(`Uploaded ${data.fileName}`)
+    } catch (error) {
+      setResumeUploadError(error.message || 'Resume upload failed')
+    } finally {
+      setIsUploadingResume(false)
+      event.target.value = ''
+    }
   }
 
   const handleEditInputChange = (event) => {
@@ -502,6 +555,16 @@ function App() {
                 </div>
               </div>
 
+              <div className="resume-block">
+                {selectedCandidate.resumeUrl ? (
+                  <a className="resume-link" href={`${API_BASE_URL}${selectedCandidate.resumeUrl}`} target="_blank" rel="noreferrer">
+                    View uploaded resume
+                  </a>
+                ) : (
+                  <span className="empty-resume">No resume uploaded yet</span>
+                )}
+              </div>
+
               <div className="detail-actions">
                 <button className="secondary-btn" type="button" onClick={() => startEditingCandidate(selectedCandidate)}>
                   Update
@@ -556,6 +619,22 @@ function App() {
                     className="input-field"
                   />
                 </label>
+
+                <label className="upload-label">
+                  Resume upload
+                  <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} className="input-field file-input" />
+                </label>
+
+                {isUploadingResume && <p className="upload-status">Uploading resume...</p>}
+                {resumeUploadError && <p className="error-text upload-error">{resumeUploadError}</p>}
+                {resumeUploadSuccess && <p className="success-text upload-success">{resumeUploadSuccess}</p>}
+
+                {editingCandidate.resumeUrl && (
+                  <a className="resume-link" href={`${API_BASE_URL}${editingCandidate.resumeUrl}`} target="_blank" rel="noreferrer">
+                    Open saved resume
+                  </a>
+                )}
+
                 <div className="form-actions">
                   <button className="primary-btn" type="button" onClick={saveCandidateChanges}>
                     Save changes
