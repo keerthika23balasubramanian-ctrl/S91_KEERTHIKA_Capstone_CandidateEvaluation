@@ -1,0 +1,20 @@
+meta {
+  name: Update Recruiter
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/recruiters/{{recruiterId}}
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "department": "Product"
+  }
+}

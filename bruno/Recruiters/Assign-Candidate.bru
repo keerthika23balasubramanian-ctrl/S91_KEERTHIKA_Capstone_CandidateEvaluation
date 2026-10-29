@@ -1,0 +1,20 @@
+meta {
+  name: Assign Candidate
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/recruiters/{{recruiterId}}/candidates
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "candidateId": "{{candidateId}}"
+  }
+}

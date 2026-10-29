@@ -1,0 +1,20 @@
+meta {
+  name: Update Candidate
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/candidates/{{candidateId}}
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "status": "Under Review"
+  }
+}

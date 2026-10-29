@@ -1,0 +1,29 @@
+meta {
+  name: Create Candidate
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/candidates
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "name": "Jordan Lee",
+    "email": "jordan.lee@example.com",
+    "phone": "+1-555-0100",
+    "role": "Software Engineer",
+    "experience": 3,
+    "currentCompany": "Example Company",
+    "location": "Remote",
+    "resumeUrl": "",
+    "status": "Applied",
+    "source": "Career Portal"
+  }
+}

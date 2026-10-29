@@ -116,3 +116,7 @@ The Candidate Evaluation Platform will demonstrate how a web-based solution can 
 ## Project Status
 
 Initial project setup completed.
+
+## API Collection
+
+The Bruno collection documenting the server API is available in the [`bruno`](./bruno) folder. Open it in Bruno and select the `local` environment to try the requests.

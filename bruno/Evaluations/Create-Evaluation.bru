@@ -1,0 +1,36 @@
+meta {
+  name: Create Evaluation
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/evaluations
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "candidate": "{{candidateId}}",
+    "recruiter": "{{recruiterId}}",
+    "overallScore": 82,
+    "status": "Reviewed",
+    "summary": "Strong experience relevant to the role.",
+    "criteria": [
+      {
+        "name": "Technical skills",
+        "score": 8,
+        "weight": 50
+      },
+      {
+        "name": "Communication",
+        "score": 8,
+        "weight": 50
+      }
+    ]
+  }
+}
