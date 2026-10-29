@@ -1,0 +1,23 @@
+meta {
+  name: Create Recruiter
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/recruiters
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "name": "Taylor Morgan",
+    "email": "taylor.morgan@example.com",
+    "department": "Engineering",
+    "role": "Recruiter"
+  }
+}

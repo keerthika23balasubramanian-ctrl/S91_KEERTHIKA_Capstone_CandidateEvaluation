@@ -1,0 +1,14 @@
+meta {
+  name: List Evaluations
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/evaluations
+  body: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

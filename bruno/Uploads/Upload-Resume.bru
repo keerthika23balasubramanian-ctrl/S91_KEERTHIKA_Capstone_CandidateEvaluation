@@ -1,0 +1,18 @@
+meta {
+  name: Upload Resume
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/upload/resume
+  body: multipartForm
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:multipart-form {
+  resume: @file(./replace-with-resume.pdf)
+}

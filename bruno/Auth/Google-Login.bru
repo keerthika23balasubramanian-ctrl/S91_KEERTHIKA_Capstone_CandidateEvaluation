@@ -1,0 +1,17 @@
+meta {
+  name: Google Login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/google
+  body: json
+}
+
+body:json {
+  {
+    "credential": "replace-with-google-id-token",
+    "clientId": "replace-with-google-client-id"
+  }
+}
