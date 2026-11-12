@@ -1,9 +1,14 @@
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/candidate-evaluation';
+  const mongoUri = process.env.MONGODB_URI ||
+    (process.env.NODE_ENV === 'production' ? '' : 'mongodb://127.0.0.1:27017/candidate-evaluation');
 
   try {
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI must be set in production.');
+    }
+
     await mongoose.connect(mongoUri);
     console.log('MongoDB connected successfully');
   } catch (error) {

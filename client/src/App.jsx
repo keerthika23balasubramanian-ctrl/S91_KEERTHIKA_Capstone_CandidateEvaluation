@@ -1,7 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+
+const defaultUsers = [
+  { name: 'Admin User', email: 'admin@evalhire.com', password: 'admin123', role: 'recruiter' },
+]
+
+const getRegisteredUsers = () => {
+  try {
+    const savedUsers = JSON.parse(localStorage.getItem('evalhire-users') || 'null')
+    if (Array.isArray(savedUsers) && savedUsers.length > 0) {
+      return savedUsers
+    }
+  } catch (error) {
+    console.error('Unable to parse registered users.', error)
+  }
+
+  localStorage.setItem('evalhire-users', JSON.stringify(defaultUsers))
+  return defaultUsers
+}
 
 const initialCandidates = [
   { id: 1, name: 'Aisha Mehta', role: 'Frontend Developer', score: 92, stage: 'Strong fit', tone: 'fit' },
@@ -35,8 +54,12 @@ const hiringFlow = [
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('evalhire-jwt')))
   const [authUser, setAuthUser] = useState(() => localStorage.getItem('evalhire-user') || '')
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' })
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
+  const [authMode, setAuthMode] = useState('login')
   const [loginError, setLoginError] = useState('')
+  const [signupError, setSignupError] = useState('')
+  const [signupSuccess, setSignupSuccess] = useState('')
   const [activeNav, setActiveNav] = useState('Dashboard')
   const [candidates, setCandidates] = useState(initialCandidates)
   const [tasks, setTasks] = useState(initialTasks)
@@ -47,6 +70,7 @@ function App() {
   const [resumeUploadError, setResumeUploadError] = useState('')
   const [resumeUploadSuccess, setResumeUploadSuccess] = useState('')
   const [isUploadingResume, setIsUploadingResume] = useState(false)
+  const googleButtonRef = useRef(null)
 
   const filteredCandidates = useMemo(() => {
     return candidates.filter((candidate) => {
@@ -125,6 +149,11 @@ function App() {
     setLoginForm((current) => ({ ...current, [name]: value }))
   }
 
+  const handleSignupInput = (event) => {
+    const { name, value } = event.target
+    setSignupForm((current) => ({ ...current, [name]: value }))
+  }
+
   useEffect(() => {
     const token = localStorage.getItem('evalhire-jwt')
     if (!token) return
@@ -152,55 +181,104 @@ function App() {
     verifyToken()
   }, [])
 
-  const handleLogin = async (event) => {
+  const handleLogin = (event) => {
     event.preventDefault()
 
-    const { username, password } = loginForm
+    const email = loginForm.email.trim().toLowerCase()
+    const password = loginForm.password
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed')
-      }
-
-      localStorage.setItem('evalhire-jwt', data.token)
-      localStorage.setItem('evalhire-user', data.user.username)
-      setAuthUser(data.user.username)
-      setIsAuthenticated(true)
-      setLoginError('')
-    } catch (error) {
-      setLoginError(error.message || 'Invalid username or password. Use admin / admin123.')
+    if (!email || !password) {
+      setLoginError('Please enter your registered email and password.')
+      return
     }
+
+    const registeredUsers = getRegisteredUsers()
+    const account = registeredUsers.find(
+      (user) => user.email.toLowerCase() === email && user.password === password,
+    )
+
+    if (!account) {
+      setLoginError('Invalid email or password. Use the exact credentials from your signup or admin account.')
+      return
+    }
+
+    const token = `${account.email}-${Date.now()}`
+    localStorage.setItem('evalhire-jwt', token)
+    localStorage.setItem('evalhire-user', account.name || account.email)
+    setAuthUser(account.name || account.email)
+    setIsAuthenticated(true)
+    setLoginError('')
+    setSignupError('')
+    setSignupSuccess('')
   }
 
-  const handleGoogleLogin = async () => {
-    try {
-      const googleUser = {
-        name: 'Google Recruiter',
-        email: 'google.recruiter@evalhire.com',
-        provider: 'google',
-      }
+  const handleSignup = (event) => {
+    event.preventDefault()
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+    const name = signupForm.name.trim()
+    const email = signupForm.email.trim().toLowerCase()
+    const password = signupForm.password
+    const confirmPassword = signupForm.confirmPassword
+
+    if (!name || !email || !password || !confirmPassword) {
+      setSignupError('Please fill in all sign-up fields.')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setSignupError('Please enter a valid email address.')
+      return
+    }
+
+    if (password.length < 6) {
+      setSignupError('Password must be at least 6 characters long.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setSignupError('Passwords do not match. Please re-enter the same password.')
+      return
+    }
+
+    const registeredUsers = getRegisteredUsers()
+    const alreadyExists = registeredUsers.some((user) => user.email.toLowerCase() === email)
+
+    if (alreadyExists) {
+      setSignupError('This email is already registered. Please use a different email or log in.')
+      return
+    }
+
+    const newUser = { name, email, password, role: 'recruiter' }
+    const updatedUsers = [...registeredUsers, newUser]
+    localStorage.setItem('evalhire-users', JSON.stringify(updatedUsers))
+
+    setSignupError('')
+    setSignupSuccess('Account created successfully. You can now log in with your exact email and password.')
+    setSignupForm({ name: '', email: '', password: '', confirmPassword: '' })
+    setLoginForm({ email, password: '' })
+    setAuthMode('login')
+  }
+
+  const handleGoogleCredentialResponse = async (response) => {
+    const credential = response?.credential
+
+    if (!credential) {
+      setLoginError('Google sign-in was cancelled or failed.')
+      return
+    }
+
+    try {
+      const googleResponse = await fetch(`${API_BASE_URL}/api/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(googleUser),
+        body: JSON.stringify({ credential, clientId: GOOGLE_CLIENT_ID }),
       })
 
-      const data = await response.json()
+      const data = await googleResponse.json()
 
-      if (!response.ok) {
+      if (!googleResponse.ok) {
         throw new Error(data.message || 'Google sign-in failed')
       }
 
@@ -214,13 +292,63 @@ function App() {
     }
   }
 
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return
+
+    const initializeGoogleSignIn = () => {
+      if (!window.google?.accounts?.id) return
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredentialResponse,
+      })
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = initializeGoogleSignIn
+    document.body.appendChild(script)
+
+    if (window.google?.accounts?.id) {
+      initializeGoogleSignIn()
+    }
+
+    return () => {
+      script.remove()
+    }
+  }, [])
+
+  const handleGoogleLogin = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      setLoginError('Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID to your client .env file and restart the app.')
+      return
+    }
+
+    if (!window.google?.accounts?.id) {
+      setLoginError('Google sign-in is still loading. Please try again in a moment.')
+      return
+    }
+
+    setLoginError('')
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        setLoginError('Google sign-in was not displayed. Please check the Google client configuration and try again.')
+      }
+    })
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('evalhire-jwt')
     localStorage.removeItem('evalhire-user')
     setIsAuthenticated(false)
     setAuthUser('')
-    setLoginForm({ username: '', password: '' })
+    setLoginForm({ email: '', password: '' })
+    setSignupForm({ name: '', email: '', password: '', confirmPassword: '' })
     setLoginError('')
+    setSignupError('')
+    setSignupSuccess('')
   }
 
   const startEditingCandidate = (candidate) => {
@@ -334,45 +462,126 @@ function App() {
           <p className="auth-subtitle">Access the recruiter dashboard</p>
 
           <div className="social-auth-block">
-            <button type="button" className="google-btn" onClick={handleGoogleLogin}>
+            <button type="button" className="google-btn" onClick={handleGoogleLogin} ref={googleButtonRef}>
               <span className="google-icon">G</span>
-              Continue with Google
+              {GOOGLE_CLIENT_ID ? 'Continue with Google' : 'Google sign-in not configured'}
             </button>
           </div>
 
-          <div className="divider"><span>or continue with username</span></div>
-
-          <form className="auth-form" onSubmit={handleLogin}>
-            <label>
-              Username
-              <input
-                type="text"
-                name="username"
-                value={loginForm.username}
-                onChange={handleLoginInput}
-                placeholder="admin"
-                className="input-field"
-              />
-            </label>
-
-            <label>
-              Password
-              <input
-                type="password"
-                name="password"
-                value={loginForm.password}
-                onChange={handleLoginInput}
-                placeholder="admin123"
-                className="input-field"
-              />
-            </label>
-
-            {loginError && <p className="error-text">{loginError}</p>}
-
-            <button className="primary-btn auth-submit" type="submit">
-              Login
+          <div className="auth-toggle-row">
+            <button
+              type="button"
+              className={`auth-toggle ${authMode === 'login' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('login')
+                setSignupError('')
+                setSignupSuccess('')
+              }}
+            >
+              Sign In
             </button>
-          </form>
+            <button
+              type="button"
+              className={`auth-toggle ${authMode === 'signup' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('signup')
+                setLoginError('')
+              }}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          {authMode === 'login' ? (
+            <form className="auth-form" onSubmit={handleLogin}>
+              <label>
+                Email
+                <input
+                  type="email"
+                  name="email"
+                  value={loginForm.email}
+                  onChange={handleLoginInput}
+                  placeholder="recruiter@company.com"
+                  className="input-field"
+                />
+              </label>
+
+              <label>
+                Password
+                <input
+                  type="password"
+                  name="password"
+                  value={loginForm.password}
+                  onChange={handleLoginInput}
+                  placeholder="Enter your password"
+                  className="input-field"
+                />
+              </label>
+
+              {loginError && <p className="error-text">{loginError}</p>}
+
+              <button className="primary-btn auth-submit" type="submit">
+                Login
+              </button>
+            </form>
+          ) : (
+            <form className="auth-form" onSubmit={handleSignup}>
+              <label>
+                Full name
+                <input
+                  type="text"
+                  name="name"
+                  value={signupForm.name}
+                  onChange={handleSignupInput}
+                  placeholder="Jane Recruiter"
+                  className="input-field"
+                />
+              </label>
+
+              <label>
+                Email
+                <input
+                  type="email"
+                  name="email"
+                  value={signupForm.email}
+                  onChange={handleSignupInput}
+                  placeholder="recruiter@company.com"
+                  className="input-field"
+                />
+              </label>
+
+              <label>
+                Password
+                <input
+                  type="password"
+                  name="password"
+                  value={signupForm.password}
+                  onChange={handleSignupInput}
+                  placeholder="Create a password"
+                  className="input-field"
+                />
+              </label>
+
+              <label>
+                Confirm password
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={signupForm.confirmPassword}
+                  onChange={handleSignupInput}
+                  placeholder="Repeat your password"
+                  className="input-field"
+                />
+              </label>
+
+              {signupError && <p className="error-text">{signupError}</p>}
+              {signupSuccess && <p className="success-text">{signupSuccess}</p>}
+
+              <button className="primary-btn auth-submit" type="submit">
+                Create account
+              </button>
+            </form>
+          )}
         </div>
       </div>
     )
