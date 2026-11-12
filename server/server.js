@@ -5,12 +5,19 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { OAuth2Client } = require('google-auth-library');
 const connectDB = require('./database');
 const { Candidate, Recruiter, Evaluation } = require('./models');
 
 const app = express();
 const DEFAULT_PORT = Number(process.env.PORT) || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'evalhire-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET ||
+  (process.env.NODE_ENV === 'production' ? '' : 'evalhire-secret-key');
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production.');
+}
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 const uploadDir = path.join(__dirname, 'uploads');
 
 if (!fs.existsSync(uploadDir)) {
@@ -105,8 +112,52 @@ app.post('/api/auth/login', (req, res) => {
   return res.status(401).json({ message: 'Invalid username or password' });
 });
 
-app.post('/api/auth/google', (req, res) => {
-  const { email, name, provider } = req.body || {};
+app.post('/api/auth/google', async (req, res) => {
+  const { credential, clientId, email, name, provider } = req.body || {};
+
+  if (credential) {
+    const audience = clientId || GOOGLE_CLIENT_ID;
+
+    if (!audience || !googleClient) {
+      return res.status(400).json({ message: 'Google OAuth is not configured on the server.' });
+    }
+
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience
+      });
+
+      const payload = ticket.getPayload();
+      const verifiedEmail = payload?.email;
+      const verifiedName = payload?.name || payload?.given_name || verifiedEmail;
+
+      if (!verifiedEmail || !verifiedName) {
+        return res.status(401).json({ message: 'Google account email is missing.' });
+      }
+
+      const tokenPayload = {
+        username: verifiedEmail,
+        role: 'google_recruiter',
+        name: verifiedName,
+        provider: 'google'
+      };
+
+      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1h' });
+
+      return res.json({
+        token,
+        user: {
+          username: verifiedEmail,
+          name: verifiedName,
+          role: 'google_recruiter',
+          provider: 'google'
+        }
+      });
+    } catch (error) {
+      return res.status(401).json({ message: 'Google authentication failed' });
+    }
+  }
 
   if (provider === 'google' && email && name) {
     const payload = {
@@ -346,8 +397,8 @@ app.put('/api/evaluations/:id', authenticateToken, async (req, res) => {
 });
 
 function startServer(port) {
-  const server = app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`Server listening on port ${port}`);
   });
 
   server.on('error', (error) => {
